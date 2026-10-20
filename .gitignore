@@ -1,0 +1,13 @@
+/build/
+/dist/
+__pycache__/
+*.pyc
+*.exe
+*.obj
+*.o
+*.pdb
+*.log
+*.nvda-addon
+HANDOVER.md
+SmokeTest.ps1
+Test-ReleasePrivacy.ps1

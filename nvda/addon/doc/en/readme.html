@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Apollo II for NVDA</title></head>
+<body>
+<h1>Apollo II for NVDA</h1>
+<p>Version 1.0. Requires NVDA 2026.2 or later on 64-bit Windows.</p>
+<p>This add-on provides a UK English voice based on the Dolphin
+Apollo II. Its pitch and tone have been adjusted using recordings from a real
+Dolphin Juno. It is an approximation, not an exact reproduction of every Apollo
+or Juno revision. No hardware, voice download or network connection is needed.</p>
+<h2>Getting started</h2>
+<ol>
+<li>Install the add-on and restart NVDA.</li>
+<li>Open the synthesizer dialog with NVDA+Control+S.</li>
+<li>Choose <strong>Apollo II for NVDA</strong>.</li>
+</ol>
+<p>The add-on uses NVDA's selected speech output device. Control stops speech;
+Shift pauses or resumes it. The previous synthesizer remains available in the
+synthesizer dialog.</p>
+<h2>Speech settings</h2>
+<p>Rate, pitch, volume, intonation, bass and treble are available in NVDA's Speech settings and
+the synthesizer settings ring. Save NVDA's configuration to retain changes.</p>
+<table>
+<caption>Voice controls</caption>
+<thead><tr><th scope="col">Control</th><th scope="col">Default</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><th scope="row">Rate</th><td>50</td><td>The original engine's nine speed settings, with 50 selecting its normal rate.</td></tr>
+<tr><th scope="row">Pitch</th><td>50</td><td>Lower or raise the voice. The engine has sixteen pitch settings, so adjacent slider values may sound identical.</td></tr>
+<tr><th scope="row">Volume</th><td>100</td><td>Reduce the speech level without changing pitch. Zero silences the voice.</td></tr>
+<tr><th scope="row">Intonation</th><td>43</td><td>Controls eight levels of pitch movement. Zero is flat. Higher rates limit pitch movement, following measurements from a real Juno.</td></tr>
+<tr><th scope="row">Bass</th><td>50</td><td>Adjust low-frequency body. 50 is neutral; 0 cuts by 12 dB and 100 boosts by 12 dB.</td></tr>
+<tr><th scope="row">Treble</th><td>50</td><td>Adjust brightness. 50 is neutral; 0 cuts by 12 dB and 100 boosts by 12 dB.</td></tr>
+</tbody>
+</table>
+<p>Louder passages automatically use less gain when needed to avoid clipping; this does not change
+your saved volume setting.</p>
+<p>Bass and treble changes apply to subsequent speech. Strong boosts may reduce
+the overall level to leave safe headroom. Set both to 50 to restore the calibrated
+sound. NVDA's capital-letter pitch change is supported; the engine's sixteen
+pitch steps still mean some adjacent slider values sound identical.</p>
+<h2>Reading numbers</h2>
+<p>Enable <strong>Read numbers as words</strong> in Speech settings to expand
+ordinary integers, decimals and ordinals before speaking. For example, 123 becomes
+one hundred and twenty-three, 3.05 becomes three point zero five, and 21st becomes
+twenty-first. The option is off by default, preserving hardware-style reading.</p>
+<p>Leading-zero codes, phone-like groups, IP addresses, version strings, dates,
+email addresses and web links are left unchanged. Valid 24-hour times are read
+as times: 16:30:29 becomes sixteen thirty and twenty-nine seconds; 09:05 becomes
+nine oh five. Invalid times are left unchanged. Ambiguous or unusually
+long numbers are also left alone. This is not a date, currency or telephone
+interpretation service. Save NVDA's configuration to retain your choice.</p>
+<p>At faster rates, intonation is reduced in smaller steps, following the Juno's
+behaviour rather than the older Apollo firmware's abrupt limits. The highest
+rate is nearly flat. This does not change your selected intonation value;
+lowering the rate restores its effect.</p>
+<h2>Updates</h2>
+<p>Open <strong>Apollo II for NVDA</strong> in NVDA Settings. Choose Never,
+Hourly or Daily for automatic update checks; Daily is the default.
+<strong>Check now</strong> checks immediately, including when automatic checks
+are disabled. Save NVDA's configuration to retain your choice.</p>
+<p>Checks contact the add-on's GitHub repository and do not send speech text.
+You choose whether to install an available update. Downloads must have a valid
+publisher signature and match the expected add-on, version, size and hash.
+NVDA stages the update and asks you to restart; voice settings are retained.</p>
+<h2>Limitations</h2>
+<ul>
+<li>This build offers one UK English voice. It does not provide other languages.</li>
+<li>Very long text is divided into bounded sections, which may affect phrasing.</li>
+<li>Pronunciation and tone can differ from particular Apollo or Juno hardware versions.</li>
+</ul>
+<h2>Credits</h2>
+<p>The firmware implementation and underlying renderer come from
+<a href="https://github.com/rommix0/Dolphin-Apollo-II-Reborn">Apollo II Reborn by rommix0</a>.
+The project preserves work from the original Dolphin Apollo II firmware and
+uses a port of the Orpheus Build 18 renderer. The original DSP implementation
+is not available. Original material remains attributable to its respective
+rights holders. This add-on is not endorsed by Dolphin.</p>
+<p>NVDA integration and Juno-reference adjustments by Andre Louis. This add-on
+is offered under GPL version 2 or later; see COPYING and NOTICE. The upstream
+author has <a href="https://github.com/rommix0/Dolphin-Apollo-II-Reborn/issues/1#issuecomment-6295193927">explicitly permitted GPL licensing of the NVDA add-on</a>.
+This does not claim that the upstream repository itself has adopted GPL or
+change the separate notices for third-party components.</p>
+<p>Source and releases: <a href="https://github.com/OnjLouis/apolloJuno">Apollo II for NVDA on GitHub</a>.</p>
+<p>The signed updater is adapted from the Prose 2000 updater. Its BSD-3-Clause
+notice is retained in the source.</p>
+<p>The tone controls use Robert Bristow-Johnson's shelving-filter equations from
+the <a href="https://www.w3.org/TR/audio-eq-cookbook/">W3C Audio EQ Cookbook</a>.</p>
+<p>English number expansion uses an English-only subset of
+<a href="https://github.com/savoirfairelinux/num2words">num2words 0.5.14</a>,
+by Taro Ogawa, Savoir-faire Linux and contributors, under LGPL 2.1 or later.
+The library's copyright notices and licence accompany the included source.</p>
+<h2>Changelog</h2>
+<h3>1.0</h3>
+<ul>
+<li>Added signed GitHub updates, an update schedule and Check now in NVDA Settings.</li>
+<li>Added 24-hour time reading when Read numbers as words is enabled.</li>
+<li>Added an optional Read numbers as words checkbox, with structured-identifier safeguards.</li>
+<li>Corrected later stress in sustained vowels, bringing long shouts closer to the Juno.</li>
+<li>Added configurable bass and treble controls with a neutral centre and safe output headroom.</li>
+<li>Added NVDA's capital-letter pitch cue without changing the saved voice pitch.</li>
+<li>Corrected the digit 1 and the sample word family to match the measured Juno pronunciations.</li>
+<li>Corrected the short vowels in terminal, terminals, terminally and says without changing say or essays.</li>
+<li>Improved high-frequency balance and consonant sound using Juno comparisons.</li>
+<li>Improved low-frequency body in voiced sounds and word endings.</li>
+<li>Raised the speech level with peak protection to avoid clipping.</li>
+<li>Added calibrated intonation contours, spelling, Say All, NVDA audio output, pause and interruption support.</li>
+</ul>
+</body>
+</html>

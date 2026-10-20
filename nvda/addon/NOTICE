@@ -1,0 +1,47 @@
+Apollo II for NVDA
+
+Copyright (C) 2026 Andre Louis. This NVDA add-on is licensed under GNU GPL
+version 2 or, at your option, any later version. See COPYING. Third-party
+copyright and licence notices remain in effect.
+
+The underlying Apollo II Reborn firmware implementation and renderer are by
+rommix0 and contributors: https://github.com/rommix0/Dolphin-Apollo-II-Reborn
+Upstream describes a C port of Apollo firmware and an Orpheus renderer port,
+with a separately rewritten DSP. The author explicitly permits GPL licensing
+of this NVDA add-on:
+https://github.com/rommix0/Dolphin-Apollo-II-Reborn/issues/1#issuecomment-6295193927
+Upstream's repository itself remains unlicensed; this notice does not claim
+otherwise or grant additional rights over unrelated third-party material.
+Original material remains attributable to its rights holders. Dolphin does
+not endorse this add-on.
+
+The updater is adapted from Andre Louis's Prose 2000 updater, originally
+marked BSD-3-Clause. Redistribution and use in source and binary forms, with
+or without modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright notice,
+   this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+English-only num2words 0.5.14 by Taro Ogawa, Savoir-faire Linux and
+contributors: LGPL version 2.1 or later. Its source notices and licence are
+preserved in synthDrivers/apolloJuno/_numberwords.
+
+Tone controls implement Robert Bristow-Johnson's Audio EQ Cookbook equations:
+https://www.w3.org/TR/audio-eq-cookbook/
