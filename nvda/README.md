@@ -1,6 +1,6 @@
 # Apollo II / Juno NVDA Integration
 
-This directory contains the Apollo II for NVDA 1.0 integration. Its firmware
+This directory contains the Apollo II for NVDA 1.1 integration. Its firmware
 profile and Juno-reference adjustments are specific to the NVDA host. Upstream
 has explicitly permitted GPL licensing of the add-on; see addon/NOTICE for the
 permission reference and preserved third-party attribution.
@@ -9,6 +9,18 @@ permission reference and preserved third-party attribution.
 the parent project's C firmware, Juno mapping and Orpheus renderer. The resulting
 `ApolloJunoHost.exe` belongs at `synthDrivers/apolloJuno/bin` in the add-on package.
 No external ROM files or DLLs are required at runtime.
+
+Two voice profiles share one helper and the same playback lifecycle. The existing
+`uk` voice ID remains Juno (calibrated), preserving saved selections; `apollo`
+selects Apollo II (original). The selected profile is captured with each queued
+speech job. The original profile uses the immutable upstream firmware data,
+unmodified prosody and rate limits, and `orp_map_frame` with the utterance's
+voiced pitch centre. It does not apply Juno's pronunciation corrections, pulse,
+noise or absolute-pitch calibration. Peak-safe volume and optional EQ remain
+shared. It is the upstream reconstruction, not a claim of bit-exact hardware audio.
+The install hook copies the previous single-voice NVDA dictionary to the new
+Juno dictionary filename, preserving the source and never overwriting an existing
+destination. The original profile gets a separate NVDA voice dictionary.
 
 The Juno profile uses a private copy of the converted firmware data with
 rate-dependent intonation limits inferred from Juno 2.02 recordings. The
@@ -42,9 +54,11 @@ are reaped and recreated on the next request, not retried indefinitely.
 
 The binary protocol is little-endian, with a sixteen-byte header: magic `APNV`,
 message type, nonzero request identifier and payload size. Speak requests carry
-six setting bytes (native rate, pitch, intonation, volume, bass, treble) and up to 320 bytes of
+seven setting bytes (native rate, pitch, intonation, volume, bass, treble, profile)
+and up to 320 bytes of
 plain ASCII text. Protocol constants are mirrored and tested in `_host.py`.
-Ready announces protocol version 2 and 10 kHz mono PCM16. Audio frames are at most
+Profile 0 is Juno and 1 is original Apollo; other values are rejected. Ready
+announces protocol version 3 and 10 kHz mono PCM16. Audio frames are at most
 16384 bytes. Done carries the number of headroom halvings applied (zero normally).
 Plain speech cannot inject firmware commands.
 

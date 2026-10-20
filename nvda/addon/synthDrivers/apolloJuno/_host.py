@@ -12,8 +12,8 @@ MAGIC = b'APNV'
 SPEAK, QUIT = 1, 2
 READY, AUDIO, DONE, ERROR = 100, 101, 102, 103
 MAX_AUDIO_BYTES = 16384
-PROTOCOL_VERSION = 2
-SETTING_BYTES = 6
+PROTOCOL_VERSION = 3
+SETTING_BYTES = 7
 SAMPLE_RATE = 10000
 CREATE_NO_WINDOW = 0x08000000
 HOST_PATH = os.path.join(os.path.dirname(__file__), 'bin', 'ApolloJunoHost.exe')
@@ -108,8 +108,10 @@ class Host:
         session = self._session
         if len(settings) == 4:
             settings = (*settings, 50, 50)
+        if len(settings) == 6:
+            settings = (*settings, 0)
         if len(settings) != SETTING_BYTES:
-            raise HostError('Apollo helper requires six speech settings.')
+            raise HostError('Apollo helper requires seven speech settings.')
         payload = bytes(settings)+text.encode('ascii')
         if len(payload) > 320 + SETTING_BYTES:
             raise HostError('Apollo helper input exceeds the protocol limit.')

@@ -3,10 +3,11 @@
 <head><meta charset="utf-8"><title>Apollo II for NVDA</title></head>
 <body>
 <h1>Apollo II for NVDA</h1>
-<p>Version 1.0. Requires NVDA 2026.2 or later on 64-bit Windows.</p>
-<p>This add-on provides a UK English voice based on the Dolphin
-Apollo II. Its pitch and tone have been adjusted using recordings from a real
-Dolphin Juno. It is an approximation, not an exact reproduction of every Apollo
+<p>Version 1.1. Requires NVDA 2026.2 or later on 64-bit Windows.</p>
+<p>This add-on provides two UK English voice profiles based on the Dolphin
+Apollo II. The Juno profile's pronunciation, intonation and tone have been adjusted
+using recordings from a real Dolphin Juno. These profiles are approximations,
+not exact reproductions of every Apollo
 or Juno revision. No hardware, voice download or network connection is needed.</p>
 <h2>Getting started</h2>
 <ol>
@@ -18,16 +19,17 @@ or Juno revision. No hardware, voice download or network connection is needed.</
 Shift pauses or resumes it. The previous synthesizer remains available in the
 synthesizer dialog.</p>
 <h2>Speech settings</h2>
-<p>Rate, pitch, volume, intonation, bass and treble are available in NVDA's Speech settings and
+<p>Voice, rate, pitch, volume, intonation, bass and treble are available in NVDA's Speech settings and
 the synthesizer settings ring. Save NVDA's configuration to retain changes.</p>
 <table>
 <caption>Voice controls</caption>
 <thead><tr><th scope="col">Control</th><th scope="col">Default</th><th scope="col">Meaning</th></tr></thead>
 <tbody>
+<tr><th scope="row">Voice</th><td>Juno (calibrated)</td><td>Choose the calibrated Juno sound or the original Apollo II Reborn profile.</td></tr>
 <tr><th scope="row">Rate</th><td>50</td><td>The original engine's nine speed settings, with 50 selecting its normal rate.</td></tr>
 <tr><th scope="row">Pitch</th><td>50</td><td>Lower or raise the voice. The engine has sixteen pitch settings, so adjacent slider values may sound identical.</td></tr>
 <tr><th scope="row">Volume</th><td>100</td><td>Reduce the speech level without changing pitch. Zero silences the voice.</td></tr>
-<tr><th scope="row">Intonation</th><td>43</td><td>Controls eight levels of pitch movement. Zero is flat. Higher rates limit pitch movement, following measurements from a real Juno.</td></tr>
+<tr><th scope="row">Intonation</th><td>43</td><td>Controls eight levels of pitch movement. Zero is flat. Higher rates limit pitch movement according to the selected profile.</td></tr>
 <tr><th scope="row">Bass</th><td>50</td><td>Adjust low-frequency body. 50 is neutral; 0 cuts by 12 dB and 100 boosts by 12 dB.</td></tr>
 <tr><th scope="row">Treble</th><td>50</td><td>Adjust brightness. 50 is neutral; 0 cuts by 12 dB and 100 boosts by 12 dB.</td></tr>
 </tbody>
@@ -38,6 +40,26 @@ your saved volume setting.</p>
 the overall level to leave safe headroom. Set both to 50 to restore the calibrated
 sound. NVDA's capital-letter pitch change is supported; the engine's sixteen
 pitch steps still mean some adjacent slider values sound identical.</p>
+<h2>Comparing the voices</h2>
+<p><strong>Juno (calibrated)</strong> keeps the sound of version 1.0, including
+the pronunciation corrections, measured intonation contours and tonal adjustments.
+It remains selected when upgrading an existing installation.</p>
+<p><strong>Apollo II (original)</strong> uses the upstream Apollo II Reborn
+pronunciations, prosody, pitch mapping and tone before the Juno adjustments.
+It refers to the upstream reconstruction, not an exact recording or emulation
+of the original hardware DSP.</p>
+<p>Choose Voice in Speech settings or the synthesizer settings ring. Both profiles
+use the same controls, audio device, spelling, Say All and pause support. Set bass
+and treble to 50 for a comparison without extra EQ. Turn off <strong>Read numbers
+as words</strong> to compare the original digit pronunciations: when enabled,
+it changes 1 to the word one before either voice receives it. NVDA's dictionaries
+can also change text before synthesis. Volume and clipping protection
+still apply to both, so this is a comparison of voice character rather than original
+hardware output level. Save NVDA's configuration to retain the selected voice.</p>
+<p>On upgrading from version 1.0, an existing NVDA voice dictionary is copied
+to Juno (calibrated), leaving the old file intact. An existing dictionary for the
+new voice name is never overwritten. Apollo II (original) has its own voice
+dictionary; NVDA's default dictionary continues to apply to both profiles.</p>
 <h2>Reading numbers</h2>
 <p>Enable <strong>Read numbers as words</strong> in Speech settings to expand
 ordinary integers, decimals and ordinals before speaking. For example, 123 becomes
@@ -49,10 +71,11 @@ as times: 16:30:29 becomes sixteen thirty and twenty-nine seconds; 09:05 becomes
 nine oh five. Invalid times are left unchanged. Ambiguous or unusually
 long numbers are also left alone. This is not a date, currency or telephone
 interpretation service. Save NVDA's configuration to retain your choice.</p>
-<p>At faster rates, intonation is reduced in smaller steps, following the Juno's
+<p>With Juno (calibrated), intonation at faster rates is reduced in smaller steps, following the Juno's
 behaviour rather than the older Apollo firmware's abrupt limits. The highest
 rate is nearly flat. This does not change your selected intonation value;
-lowering the rate restores its effect.</p>
+lowering the rate restores its effect. Apollo II (original) retains the older
+firmware's more abrupt high-rate limits.</p>
 <h2>Updates</h2>
 <p>Open <strong>Apollo II for NVDA</strong> in NVDA Settings. Choose Never,
 Hourly or Daily for automatic update checks; Daily is the default.
@@ -64,7 +87,7 @@ publisher signature and match the expected add-on, version, size and hash.
 NVDA stages the update and asks you to restart; voice settings are retained.</p>
 <h2>Limitations</h2>
 <ul>
-<li>This build offers one UK English voice. It does not provide other languages.</li>
+<li>Both profiles are UK English. This build does not provide other languages.</li>
 <li>Very long text is divided into bounded sections, which may affect phrasing.</li>
 <li>Pronunciation and tone can differ from particular Apollo or Juno hardware versions.</li>
 </ul>
@@ -90,6 +113,12 @@ the <a href="https://www.w3.org/TR/audio-eq-cookbook/">W3C Audio EQ Cookbook</a>
 by Taro Ogawa, Savoir-faire Linux and contributors, under LGPL 2.1 or later.
 The library's copyright notices and licence accompany the included source.</p>
 <h2>Changelog</h2>
+<h3>1.1</h3>
+<ul>
+<li>Added Apollo II (original) for comparing the upstream sound with Juno (calibrated).</li>
+<li>Added Voice selection in Speech settings and the synthesizer settings ring.</li>
+<li>Kept the existing Juno sound and saved selection unchanged. Both profiles share NVDA playback, indexing and controls.</li>
+</ul>
 <h3>1.0</h3>
 <ul>
 <li>Added signed GitHub updates, an update schedule and Check now in NVDA Settings.</li>

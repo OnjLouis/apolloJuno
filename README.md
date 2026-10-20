@@ -3,7 +3,8 @@
 A local UK English speech synthesizer for NVDA, based on
 [Dolphin Apollo II Reborn by rommix0](https://github.com/rommix0/Dolphin-Apollo-II-Reborn),
 with pronunciation, intonation and tone adjustments measured against a Dolphin Juno.
-It is an approximation of that hardware, not an exact recreation of every revision.
+It offers both the original Apollo II Reborn profile and the Juno-calibrated
+profile. These are approximations, not exact recreations of every hardware revision.
 
 ## Hardware Reference
 
@@ -22,8 +23,8 @@ together in this repository.
 
 ## Install
 
-Download `apolloJuno-1.0.nvda-addon` from the
-[1.0 release](https://github.com/OnjLouis/apolloJuno/releases/tag/v1.0),
+Download the add-on from the
+[releases page](https://github.com/OnjLouis/apolloJuno/releases),
 install it in NVDA and restart. Choose **Apollo II for NVDA** in the synthesizer
 dialog. Requires NVDA 2026.2 or later on 64-bit Windows.
 
@@ -34,10 +35,19 @@ supported, including playback-timed indexes.
 
 ## Settings
 
-Rate, pitch, volume, intonation, bass and treble appear in NVDA's Speech settings
+Voice, rate, pitch, volume, intonation, bass and treble appear in NVDA's Speech settings
 and synthesizer ring. Pitch and intonation have a limited number of native steps.
 Bass and treble are neutral at 50, with up to 12 dB of cut or boost. Peak protection
 prevents strong boosts from clipping.
+
+Choose **Juno (calibrated)** for the existing Juno-reference pronunciation,
+intonation and tone, or **Apollo II (original)** to hear the upstream profile
+before those adjustments. Juno remains the default and existing selections are
+preserved. Both are UK English and share the same NVDA playback and controls.
+For a comparison without additional EQ, set bass and treble to 50. Original
+refers to the upstream reconstruction, not an exact hardware-ROM recording.
+Turn off **Read numbers as words** to compare raw digits: otherwise `1` is
+converted to the word "one" before either voice receives it.
 
 Enable **Read numbers as words** in Speech settings for English integers,
 decimals, ordinals and valid 24-hour times. For example, `16:30:29` becomes
@@ -87,6 +97,12 @@ Place the resulting `ApolloJunoHost.exe` under
 archive contains the contents of `nvda/addon`, not this repository's tests or
 native source directories. The binary protocol and architecture are documented
 in [the integration notes](nvda/README.md).
+
+## Version 1.1
+
+- Added Apollo II (original) alongside the unchanged Juno (calibrated) voice.
+- Voice selection is available in Speech settings and the synthesizer ring.
+- Both profiles share playback, indexing, volume, EQ and number-reading options.
 
 ## Version 1.0
 

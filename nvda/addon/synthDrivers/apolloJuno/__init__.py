@@ -16,12 +16,14 @@ from ._host import Host, HOST_PATH, SAMPLE_RATE
 from ._text import chunks, native_rate, native_pitch, native_intonation, percent
 from ._numbers import expand_numbers
 
+PROFILES = {'uk': 0, 'apollo': 1}
+
 
 class SynthDriver(BaseSynth):
     name = 'apolloJuno'
     description = 'Apollo II for NVDA'
     supportedSettings = (
-        BaseSynth.RateSetting(), BaseSynth.PitchSetting(), BaseSynth.VolumeSetting(),
+        BaseSynth.VoiceSetting(), BaseSynth.RateSetting(), BaseSynth.PitchSetting(), BaseSynth.VolumeSetting(),
         NumericDriverSetting('intonation', '&Intonation', availableInSettingsRing=True,
                              defaultVal=43, minStep=1, normalStep=14, largeStep=28,
                              displayName='Intonation'),
@@ -43,6 +45,7 @@ class SynthDriver(BaseSynth):
         super().__init__()
         self._rate, self._pitch, self._volume, self._intonation = 50, 50, 100, 43
         self._bass, self._treble = 50, 50
+        self._voice = 'uk'
         self._readNumbers = False
         self._generation = 0
         self._latest_job = 0
@@ -64,14 +67,18 @@ class SynthDriver(BaseSynth):
             raise
 
     def _get_availableVoices(self):
-        return OrderedDict((('uk', VoiceInfo('uk', 'UK English', language='en_GB')),))
+        return OrderedDict((
+            ('uk', VoiceInfo('uk', 'Juno (calibrated)', language='en_GB')),
+            ('apollo', VoiceInfo('apollo', 'Apollo II (original)', language='en_GB')),
+        ))
 
     def _get_voice(self):
-        return 'uk'
+        return self._voice
 
     def _set_voice(self, value):
-        if value != 'uk':
-            raise ValueError('This trial has one UK English voice.')
+        if value not in PROFILES:
+            raise ValueError('Unknown Apollo voice profile.')
+        self._voice = value
 
     def _get_language(self):
         return 'en_GB'
@@ -146,7 +153,8 @@ class SynthDriver(BaseSynth):
                     return
                 self._latest_job += 1
                 settings = (native_rate(self._rate), native_pitch(self._pitch),
-                            native_intonation(self._intonation), self._volume, self._bass, self._treble)
+                            native_intonation(self._intonation), self._volume, self._bass, self._treble,
+                            PROFILES[self._voice])
                 self._jobs.put((self._generation, self._latest_job, settings, events))
 
     def cancel(self):

@@ -8,13 +8,15 @@
 #include "engine/native_engine.h"
 #include "firmware/data/fw_data.h"
 #include "orpheus/juno_map.h"
+#include "orpheus/orp_map.h"
 #include "orpheus/orp_synth.h"
 #include "output_level.h"
 #include "juno_pronunciation.h"
 #include "tone_controls.h"
 
 enum { SPEAK = 1, QUIT = 2, READY = 100, AUDIO = 101, DONE = 102, ERROR = 103 };
-enum { MAX_TEXT = 320, SETTING_BYTES = 6, MAX_PAYLOAD = MAX_TEXT + SETTING_BYTES, AUDIO_BYTES = 16384, MARK_SPACE = 82,
+enum { PROFILE_JUNO = 0, PROFILE_APOLLO = 1, PROTOCOL_VERSION = 3 };
+enum { MAX_TEXT = 320, SETTING_BYTES = 7, MAX_PAYLOAD = MAX_TEXT + SETTING_BYTES, AUDIO_BYTES = 16384, MARK_SPACE = 82,
        MAX_GAIN_HALVINGS = 4, NOISE_LOW_ATTENUATION = 3, NOISE_HIGH_ATTENUATION = 20 };
 static const double noise_pole_scale = .9;
 static const char magic[4] = {'A', 'P', 'N', 'V'};
@@ -96,7 +98,8 @@ static int send_error(uint32_t request, const char *message)
 static int speak(uint32_t request, const uint8_t *payload, uint32_t size)
 {
     if (size <= SETTING_BYTES || payload[0] < 1 || payload[0] > 9 || payload[1] > 15 ||
-        payload[2] > 7 || payload[3] > 100 || payload[4] > TONE_MAX || payload[5] > TONE_MAX)
+        payload[2] > 7 || payload[3] > 100 || payload[4] > TONE_MAX || payload[5] > TONE_MAX ||
+        payload[6] > PROFILE_APOLLO)
         return send_error(request, "Invalid speech settings or empty input.");
     for (uint32_t i = SETTING_BYTES; i < size; i++) {
         if (payload[i] < 32 || payload[i] > 126 || payload[i] == '@' || payload[i] == '_')
@@ -111,9 +114,11 @@ static int speak(uint32_t request, const uint8_t *payload, uint32_t size)
     input[prefix + size - SETTING_BYTES] = '\0';
     frame_list frames = {0};
     engine_input in = {(const uint8_t *)input, strlen(input), true};
+    bool calibrated = payload[6] == PROFILE_JUNO;
     native_watch watch = {.on_idle = apply_juno_profile};
-    engine_status status = native_engine_run_input(&engine, NULL, &in, false, &frames, NULL, &watch);
-    if (status != ENGINE_IDLE || !juno_pronunciation_ready) {
+    engine_status status = native_engine_run_input(&engine, NULL, &in, false, &frames, NULL,
+                                                   calibrated ? &watch : NULL);
+    if (status != ENGINE_IDLE || (calibrated && !juno_pronunciation_ready)) {
         frame_list_free(&frames);
         return send_error(request, "Apollo firmware did not complete this input.");
     }
@@ -127,24 +132,32 @@ static int speak(uint32_t request, const uint8_t *payload, uint32_t size)
         frame_list_free(&frames);
         return send_error(request, "There is not enough memory for Apollo audio.");
     }
+    /* The upstream renderer widens pitch around the utterance's voiced median.
+       Juno uses its measured absolute pitch mapping instead. */
+    float centre = !calibrated && frames.count ? params_f0_centre(frames.frames[0], frames.count) : 0;
     uint32_t gain_halvings = 0;
     for (;;) {
         orp_init(&voice);
-        calibrate_noise_bands();
+        if (calibrated)
+            calibrate_noise_bands();
         /* Validate synthesis headroom before applying the output-level boost. */
         voice.final_f.a /= 1U << gain_halvings;
         voice.final_f.y1 /= 1U << gain_halvings;
         voice.final_f.y2 /= 1U << gain_halvings;
         for (size_t i = 0; i < frames.count; i++) {
             int16_t params[ORP_PARAMS];
-            juno_map_frame(frames.frames[i], params);
-            if (params[8] > 0)
-                params[8] = (int16_t)(params[8] > NOISE_LOW_ATTENUATION ? params[8] - NOISE_LOW_ATTENUATION : 0);
-            if (params[9] > 0)
-                params[9] = (int16_t)(params[9] > NOISE_HIGH_ATTENUATION ? params[9] - NOISE_HIGH_ATTENUATION : 0);
-            int pitch = params[13];
-            int pulse = 2 * pitch - ((2 * pitch - (pitch >> 1)) * MARK_SPACE) / 100;
-            params[14] = (int16_t)(pulse * 100 / 60);
+            if (calibrated) {
+                juno_map_frame(frames.frames[i], params);
+                if (params[8] > 0)
+                    params[8] = (int16_t)(params[8] > NOISE_LOW_ATTENUATION ? params[8] - NOISE_LOW_ATTENUATION : 0);
+                if (params[9] > 0)
+                    params[9] = (int16_t)(params[9] > NOISE_HIGH_ATTENUATION ? params[9] - NOISE_HIGH_ATTENUATION : 0);
+                int pitch = params[13];
+                int pulse = 2 * pitch - ((2 * pitch - (pitch >> 1)) * MARK_SPACE) / 100;
+                params[14] = (int16_t)(pulse * 100 / 60);
+            } else {
+                orp_map_frame(frames.frames[i], centre, params);
+            }
             orp_frame(&voice, params, i == 0, audio + i * ORP_FRAME_SAMPLES);
         }
         if (!orp_clipped(&voice) || gain_halvings == MAX_GAIN_HALVINGS)
@@ -180,7 +193,7 @@ int main(void)
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
     level_init(&output_meter);
-    const uint32_t ready[2] = {2, 10000};
+    const uint32_t ready[2] = {PROTOCOL_VERSION, 10000};
     if (!send_message(READY, 0, ready, sizeof ready))
         return 1;
     for (;;) {

@@ -27,6 +27,10 @@ class AutoProperties:
         pass
 
     @staticmethod
+    def VoiceSetting():
+        return Setting('voice')
+
+    @staticmethod
     def RateSetting():
         return Setting('rate')
 
@@ -160,6 +164,45 @@ def wait_for(predicate, seconds=3, tick=None):
 
 
 class DriverTests(unittest.TestCase):
+    voice = 'uk'
+
+    def test_voice_selection_preserves_controls_and_rejects_unknown_ids(self):
+        self.assertIn('voice', [setting.id for setting in self.synth.supportedSettings])
+        self.assertEqual(list(self.synth.availableVoices), ['uk', 'apollo'])
+        self.assertEqual(self.synth.voice, self.voice)
+        self.synth.rate, self.synth.pitch, self.synth.intonation = 65, 35, 100
+        self.synth.volume, self.synth.bass, self.synth.treble = 42, 60, 40
+        for selected in ('apollo', 'uk', 'apollo'):
+            self.synth.voice = selected
+            self.assertEqual(self.synth.voice, selected)
+            self.assertEqual((self.synth.rate, self.synth.pitch, self.synth.intonation,
+                              self.synth.volume, self.synth.bass, self.synth.treble),
+                             (65, 35, 100, 42, 60, 40))
+        with self.assertRaises(ValueError):
+            self.synth.voice = 'unknown'
+        self.assertEqual(self.synth.voice, 'apollo')
+
+    def test_queued_speech_keeps_its_selected_profile(self):
+        rendered = []
+        original = self.synth._host.render
+        def capture(settings, text, stopping):
+            rendered.append((settings[-1], text))
+            return original(settings, text, stopping)
+        self.synth._host.render = capture
+        self.synth._player.block = True
+        self.synth.voice = 'uk'
+        self.synth.speak(['First.', IndexCommand(1)])
+        self.assertTrue(self.synth._player.entered.wait(2))
+        self.synth.voice = 'apollo'
+        self.synth.speak(['Second.', IndexCommand(2)])
+        self.synth.voice = 'uk'
+        self.synth.speak(['Third.', IndexCommand(3)])
+        self.synth._player.block = False
+        self.synth._player.release.set()
+        self.ready()
+        self.drain()
+        self.assertEqual(rendered, [(0, 'First.'), (1, 'Second.'), (0, 'Third.')])
+
     def test_number_expansion_is_opt_in_and_preserves_identifiers(self):
         self.assertFalse(self.synth.readNumbers)
         captured = []
@@ -198,6 +241,7 @@ class DriverTests(unittest.TestCase):
         done.handler = index.handler = None
         errors.clear()
         self.synth = driver.SynthDriver()
+        self.synth.voice = self.voice
 
     def tearDown(self):
         player = self.synth._player
@@ -358,6 +402,27 @@ class DriverTests(unittest.TestCase):
         self.assertNotEqual(process.pid, self.synth._host.pid)
         self.assertEqual((self.synth.rate, self.synth.pitch, self.synth.volume, self.synth.intonation),
                          (65, 35, 42, 100))
+
+
+class OriginalDriverTests(DriverTests):
+    voice = 'apollo'
+
+    def test_number_words_option_bypasses_original_digit_pronunciation(self):
+        rendered = []
+        original = self.synth._host.render
+        def capture(settings, text, stopping):
+            rendered.append((settings[-1], text))
+            return original(settings, text, stopping)
+        self.synth._host.render = capture
+        self.synth.speak(['1'])
+        self.ready()
+        self.drain()
+        done.calls.clear()
+        self.synth.readNumbers = True
+        self.synth.speak(['1'])
+        self.ready()
+        self.drain()
+        self.assertEqual(rendered, [(1, '1'), (1, 'one')])
 
 
 if __name__ == '__main__':

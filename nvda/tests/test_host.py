@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import threading
 import unittest
+from unittest.mock import patch
 
 
 PATH = Path(__file__).resolve().parents[1]/'addon/synthDrivers/apolloJuno/_host.py'
@@ -16,6 +17,60 @@ HOST = os.environ['APOLLO_TEST_HOST']
 
 
 class HostTests(unittest.TestCase):
+    def test_mismatched_protocol_stops_helper_before_speech(self):
+        with patch.object(host, 'PROTOCOL_VERSION', host.PROTOCOL_VERSION - 1):
+            with self.assertRaisesRegex(host.HostError, 'protocol or sample rate'):
+                self.host.start()
+        self.assertIsNone(self.host._session)
+        self.host.start()
+        self.assertTrue(any(self.render()))
+
+    def test_original_matches_pinned_upstream_renderer(self):
+        # Independently rendered from Apollo II Reborn 4bd78b4, with only the
+        # shared neutral output-level protection applied after synthesis.
+        references = (
+            ('1', 0, '156852c8c1bccccb140148312ee14559469ddf98f0079cd3021c83bb52053397'),
+            ('sample', 0, '1a3ad8d94a399bac277aba26fb9de8d4af85270d69e3a84cf42b29f63c649fdb'),
+            ('terminal', 0, 'd6e594b6dfded6b3eeadb3901e42a24b13ec57fb68178aeb5cf175ab10f6094e'),
+            ('says', 0, '7d04b97a95d8c96269ba35aa6bb1189a4e3cc4920c2a45d62b5898825fefda9c'),
+            ('Wo wo? Wo wo!', 7, '1df811f6e9104f0d1c128e02d7c6a07529c528aa3753a05b2d094472fe18d3df'),
+            ('Fwaaaaaaaaaaaaaaaaaaaaaaaaaa!', 7, '0e683e22568fbf18e19a07fcc64b1048df827d1f866948d52879fbca0426887d'),
+        )
+        for text, intonation, digest in references:
+            with self.subTest(text=text):
+                audio = self.render(text, (5, 8, intonation, 100, 50, 50, 1))
+                self.assertEqual(hashlib.sha256(audio).hexdigest(), digest)
+
+    def test_profiles_are_distinct_and_do_not_leak_state(self):
+        pid = self.host.pid
+        text = '1 sample. The terminal says: Wo wo? Wo wo!'
+        calibrated = self.render(text, (5, 8, 7, 100, 50, 50, 0))
+        original = self.render(text, (5, 8, 7, 100, 50, 50, 1))
+        self.assertNotEqual(original, calibrated)
+        for _ in range(8):
+            self.assertEqual(self.render(text, (5, 8, 7, 100, 50, 50, 0)), calibrated)
+            self.assertEqual(self.render(text, (5, 8, 7, 100, 50, 50, 1)), original)
+            self.assertEqual(self.host.pid, pid)
+
+    def test_unknown_profile_is_rejected_and_helper_recovers(self):
+        with self.assertRaises(host.HostError):
+            self.render(settings=(3, 8, 3, 100, 50, 50, 2))
+        self.assertTrue(any(self.render()))
+
+    def test_original_profile_controls_and_headroom(self):
+        text = 'Sample! The terminal says one. Oh no?'
+        normal = self.render(text, (3, 8, 3, 100, 50, 50, 1))
+        for settings in ((7, 8, 3, 100, 50, 50, 1), (3, 4, 3, 100, 50, 50, 1),
+                         (3, 8, 0, 100, 50, 50, 1), (3, 8, 7, 100, 50, 50, 1),
+                         (3, 8, 3, 100, 100, 100, 1), (1, 15, 7, 100, 50, 50, 1)):
+            with self.subTest(settings=settings):
+                audio = self.render(text, settings)
+                self.assertNotEqual(audio, normal)
+                self.assertLess(max(map(abs, array.array('h', audio))), 27600)
+        half = array.array('h', self.render(text, (3, 8, 3, 50, 50, 50, 1)))
+        self.assertTrue(all(abs(2*h-f) <= 1 for h, f in zip(half, array.array('h', normal))))
+        self.assertEqual(self.render(text, (3, 8, 3, 0, 50, 50, 1)), bytes(len(normal)))
+
     def test_sustained_shout_keeps_juno_later_stress(self):
         samples = array.array('h', self.render('Fwaaaaaaaaaaaaaaaaaaaaaaaaaa!', (5, 8, 7, 100)))
         window = samples[3500:6500]
