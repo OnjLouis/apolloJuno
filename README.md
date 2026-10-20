@@ -5,6 +5,21 @@ A local UK English speech synthesizer for NVDA, based on
 with pronunciation, intonation and tone adjustments measured against a Dolphin Juno.
 It is an approximation of that hardware, not an exact recreation of every revision.
 
+## Hardware Reference
+
+This is the independently maintained Juno-calibrated implementation. The upstream
+Apollo II Reborn project and this project use different hardware/firmware
+references; differences in pronunciation and sound can be intentional, rather
+than a defect in either implementation. Neither is a universal replacement for
+the other.
+
+Our calibration follows recordings and listening comparisons with a working
+Juno. It is not a recovered newer ROM or a claim of bit-exact firmware accuracy;
+the hardware's audio path also contributes to its sound. Model-specific changes
+remain here, while generally applicable fixes can be offered upstream separately.
+The native engine, calibration, NVDA integration and their tests are maintained
+together in this repository.
+
 ## Install
 
 Download `apolloJuno-1.0.nvda-addon` from the

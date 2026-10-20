@@ -10,11 +10,11 @@ the parent project's C firmware, Juno mapping and Orpheus renderer. The resultin
 `ApolloJunoHost.exe` belongs at `synthDrivers/apolloJuno/bin` in the add-on package.
 No external ROM files or DLLs are required at runtime.
 
-The Juno trial uses a private copy of the converted firmware data with
+The Juno profile uses a private copy of the converted firmware data with
 rate-dependent intonation limits inferred from Juno 2.02 recordings. The
 recovered Apollo 2.01 limits are more abrupt. The original image and other
 renderers remain unchanged; this calibration is not a recovered Juno ROM.
-Calibrated prosody parameters are initialized directly in the trial's firmware
+Calibrated prosody parameters are initialized directly in the host's firmware
 state, avoiding the legacy parser's ambiguous doubled-R command. Exclamation
 stress follows hardware comparisons; the effective comma baseline is retained
 for compatibility with the previously tested voice.
