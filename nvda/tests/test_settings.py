@@ -111,3 +111,23 @@ class SettingsTests(unittest.TestCase):
             sequence = ['16:30:29']
             self.assertIs(plugin._filterSpeech(sequence), sequence)
         self.expandTimes.assert_not_called()
+
+    def test_inline_filter_runs_before_time_expansion_and_only_for_this_synth(self):
+        command=object()
+        prepared=['16:30:29',command]
+        module=types.ModuleType('synthDrivers.apolloJuno._commands')
+        module.prepare_sequence=Mock(return_value=prepared)
+        with patch.dict(sys.modules,{'synthDrivers.apolloJuno._commands':module}):
+            plugin=self.module.GlobalPlugin()
+            synth=self.modules['synthDriverHandler'].getSynth.return_value
+            synth.inlineCommands=True
+            result=plugin._filterSpeech(['{{@W9}}16:30:29'])
+            self.assertEqual(result,['sixteen thirty and twenty nine seconds',command])
+            module.prepare_sequence.assert_called_once_with(['{{@W9}}16:30:29'])
+            synth.name='oneCore'
+            sequence=['{{@W9}}']
+            self.assertIs(plugin._filterSpeech(sequence),sequence)
+            module.prepare_sequence.assert_called_once()
+            synth.name='apolloJuno'
+            synth.readNumbers=False
+            self.assertIs(plugin._filterSpeech(sequence),prepared)

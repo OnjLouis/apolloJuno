@@ -70,6 +70,19 @@ class PitchCommand:
         self.newValue = 50 + offset
 
 
+class SynthCommand:
+    pass
+
+
+class SynthParamCommand(SynthCommand):
+    isDefault = False
+
+
+class CharacterModeCommand(SynthParamCommand):
+    def __init__(self, state):
+        self.state = state
+
+
 class Player:
     def __init__(self, *args, **kwargs):
         self.queue = deque()
@@ -138,7 +151,8 @@ modules = {
     'autoSettingsUtils.driverSetting': types.SimpleNamespace(NumericDriverSetting=Setting, BooleanDriverSetting=Setting),
     'logHandler': types.SimpleNamespace(log=fake_log),
     'speech': types.ModuleType('speech'),
-    'speech.commands': types.SimpleNamespace(IndexCommand=IndexCommand, PitchCommand=PitchCommand),
+    'speech.commands': types.SimpleNamespace(IndexCommand=IndexCommand, PitchCommand=PitchCommand,
+        CharacterModeCommand=CharacterModeCommand, SynthCommand=SynthCommand, SynthParamCommand=SynthParamCommand),
     'synthDriverHandler': types.SimpleNamespace(SynthDriver=AutoProperties,
         VoiceInfo=lambda *args, **kwargs: kwargs, synthDoneSpeaking=done, synthIndexReached=index),
 }
@@ -165,6 +179,116 @@ def wait_for(predicate, seconds=3, tick=None):
 
 class DriverTests(unittest.TestCase):
     voice = 'uk'
+
+    def test_inline_commands_are_opt_in_and_do_not_leak_to_next_job(self):
+        self.assertFalse(self.synth.inlineCommands)
+        self.synth.inlineCommands = True
+        captured = []
+        original = self.synth._host.render_inline
+        def capture(settings, prefix, level, text, effect, stopping):
+            captured.append((prefix, level, text, effect))
+            return original(settings, prefix, level, text, effect, stopping)
+        self.synth._host.render_inline = capture
+        self.synth.speak(['{{@F0}}Low.{{@A5}}Quiet.{{@T0}}{{reset}}Normal.', IndexCommand(1)])
+        self.ready()
+        self.drain()
+        self.assertEqual(captured, [('@F0',15,'Low.',255), ('@F0',5,'Quiet.',255), ('@F0',5,'',0)])
+        self.assertEqual((self.synth.pitch, self.synth.volume), (50,100))
+        self.synth.speak(['Next.', IndexCommand(2)])
+        self.ready()
+        self.drain()
+        self.assertEqual(len(captured),3)
+
+    def test_inline_preprocessing_preserves_spelling_indexes_and_reset(self):
+        from apolloJuno._commands import prepare_sequence, InlineStateCommand, InlineEffectCommand
+        spelling = [CharacterModeCommand(True), '{{@F0}}', CharacterModeCommand(False)]
+        self.assertIs(prepare_sequence(spelling), spelling)
+        marker = IndexCommand(88)
+        sequence = prepare_sequence(['{{@F0}}One.', marker, '{{@T1}}Two.'])
+        self.assertIsInstance(sequence[0], InlineStateCommand)
+        self.assertIs(sequence[2], marker)
+        self.assertIsInstance(sequence[3], InlineEffectCommand)
+        self.assertTrue(sequence[-1].isDefault)
+        self.synth.inlineCommands = True
+        self.synth.speak(sequence)
+        self.ready()
+        self.drain()
+        self.assertEqual([call['index'] for call in index.calls], [88])
+
+    def test_inline_state_survives_text_chunks_and_capital_pitch_changes(self):
+        self.synth.inlineCommands = True
+        captured=[]
+        original=self.synth._host.render_inline
+        def capture(settings,prefix,level,text,effect,stopping):
+            captured.append((prefix,level,text))
+            return original(settings,prefix,level,text,effect,stopping)
+        self.synth._host.render_inline=capture
+        self.synth.speak(['{{@F3}}{{@A5}}'+'Several words. '*50,
+                          IndexCommand(1),PitchCommand(30),'Capital.',PitchCommand(),'Normal.'])
+        self.ready()
+        self.drain()
+        self.assertGreater(len(captured),3)
+        self.assertTrue(all(prefix=='@F3' and level==5 for prefix,level,text in captured[:-2]))
+        self.assertEqual(captured[-2][0], '@F3 @F7')
+        self.assertEqual(captured[-1][0], '@F3')
+        self.assertEqual([call['index'] for call in index.calls],[1])
+
+    def test_inline_disabled_input_and_plain_enabled_input_keep_old_audio(self):
+        captured=[]
+        original=self.synth._host.render
+        def capture(settings,text,stopping):
+            captured.append(text)
+            return original(settings,text,stopping)
+        self.synth._host.render=capture
+        self.synth.speak(['{{@T0}} @W9'])
+        self.ready()
+        self.drain()
+        self.assertIn('at T0',captured[-1])
+        self.synth.inlineCommands=True
+        self.synth.speak(['Ordinary speech.'])
+        self.ready()
+        self.drain()
+        self.assertEqual(captured[-1],'Ordinary speech.')
+
+    def test_inline_cancel_does_not_leak_state_or_restart_helper(self):
+        self.synth.inlineCommands=True
+        pid=self.synth._host.pid
+        player=self.synth._player
+        player.block=True
+        self.synth.speak(['{{@F0}}{{@A0}}Old.',IndexCommand(1)])
+        self.assertTrue(player.entered.wait(2))
+        self.synth.cancel()
+        player.block=False
+        player.release.set()
+        self.synth.speak(['New.',IndexCommand(2)])
+        self.ready()
+        self.drain()
+        self.assertEqual([call['index'] for call in index.calls],[2])
+        self.assertTrue(any(b''.join(player.played)))
+        self.assertEqual(self.synth._host.pid,pid)
+
+    def test_inline_sequence_snapshots_survive_manager_parameter_replay(self):
+        from apolloJuno._commands import prepare_sequence, InlineStateCommand
+        sequence=prepare_sequence(['{{@W9}}Fast.','{{@F0}}Low.','{{@A5}}Quiet.'])
+        commands=[item for item in sequence if isinstance(item,InlineStateCommand)]
+        self.assertEqual(commands[2].commands,('@W9','@F0','@A5'))
+        self.assertTrue(commands[-1].isDefault)
+        self.assertIs(prepare_sequence(sequence),sequence)
+        self.assertEqual(prepare_sequence(iter(['Unchanged.'])), ['Unchanged.'])
+        self.synth.inlineCommands=True
+        captured=[]
+        original=self.synth._host.render_inline
+        def capture(settings,prefix,level,text,effect,stopping):
+            captured.append((prefix,level,text))
+            return original(settings,prefix,level,text,effect,stopping)
+        self.synth._host.render_inline=capture
+        # NVDA replays the full last parameter command when it splits an utterance.
+        self.synth.speak([commands[1],'Later.',IndexCommand(1)])
+        self.ready()
+        self.drain()
+        self.assertEqual(captured,[('@W9 @F0',15,'Later.')])
+
+
 
     def test_voice_selection_preserves_controls_and_rejects_unknown_ids(self):
         self.assertIn('voice', [setting.id for setting in self.synth.supportedSettings])

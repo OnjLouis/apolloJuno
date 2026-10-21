@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ApolloJuno VERSION 1.1 LANGUAGES C)
+project(ApolloJuno VERSION 1.2 LANGUAGES C)
 
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "The NVDA host requires 64-bit Windows")

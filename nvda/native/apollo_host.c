@@ -13,10 +13,13 @@
 #include "output_level.h"
 #include "juno_pronunciation.h"
 #include "tone_controls.h"
+#include "inline_commands.h"
 
-enum { SPEAK = 1, QUIT = 2, READY = 100, AUDIO = 101, DONE = 102, ERROR = 103 };
-enum { PROFILE_JUNO = 0, PROFILE_APOLLO = 1, PROTOCOL_VERSION = 3 };
-enum { MAX_TEXT = 320, SETTING_BYTES = 7, MAX_PAYLOAD = MAX_TEXT + SETTING_BYTES, AUDIO_BYTES = 16384, MARK_SPACE = 82,
+enum { SPEAK = 1, QUIT = 2, SPEAK_INLINE = 3, READY = 100, AUDIO = 101, DONE = 102, ERROR = 103 };
+enum { PROFILE_JUNO = 0, PROFILE_APOLLO = 1, PROTOCOL_VERSION = 4 };
+enum { MAX_TEXT = 320, SETTING_BYTES = 7,
+       MAX_PAYLOAD = MAX_TEXT + SETTING_BYTES + INLINE_HEADER_BYTES + MAX_INLINE_PREFIX,
+       AUDIO_BYTES = 16384, MARK_SPACE = 82,
        MAX_GAIN_HALVINGS = 4, NOISE_LOW_ATTENUATION = 3, NOISE_HIGH_ATTENUATION = 20 };
 static const double noise_pole_scale = .9;
 static const char magic[4] = {'A', 'P', 'N', 'V'};
@@ -95,23 +98,50 @@ static int send_error(uint32_t request, const char *message)
     return send_message(ERROR, request, message, (uint32_t)strlen(message));
 }
 
-static int speak(uint32_t request, const uint8_t *payload, uint32_t size)
+static int speak(uint32_t request, const uint8_t *payload, uint32_t size, bool inline_mode)
 {
     if (size <= SETTING_BYTES || payload[0] < 1 || payload[0] > 9 || payload[1] > 15 ||
         payload[2] > 7 || payload[3] > 100 || payload[4] > TONE_MAX || payload[5] > TONE_MAX ||
         payload[6] > PROFILE_APOLLO)
         return send_error(request, "Invalid speech settings or empty input.");
-    for (uint32_t i = SETTING_BYTES; i < size; i++) {
+    uint32_t text_start = SETTING_BYTES, command_size = 0;
+    uint8_t inline_volume = INLINE_FULL_VOLUME, effect = INLINE_NO_EFFECT;
+    if (inline_mode) {
+        if (size < SETTING_BYTES + INLINE_HEADER_BYTES)
+            return send_error(request, "Incomplete inline command header.");
+        command_size = payload[SETTING_BYTES] | ((uint32_t)payload[SETTING_BYTES + 1] << 8);
+        inline_volume = payload[SETTING_BYTES + 2];
+        effect = payload[SETTING_BYTES + 3];
+        text_start += INLINE_HEADER_BYTES;
+        if (command_size > size - text_start || inline_volume > INLINE_FULL_VOLUME ||
+            (effect > INLINE_PAUSE_EFFECT && effect != INLINE_NO_EFFECT) ||
+            !inline_prefix_valid(payload + text_start, command_size))
+            return send_error(request, "Invalid inline command settings.");
+        text_start += command_size;
+    }
+    uint32_t text_size = size - text_start;
+    if (text_size > MAX_TEXT || (effect == INLINE_NO_EFFECT ? !text_size : text_size != 0))
+        return send_error(request, "Invalid inline speech or effect length.");
+    for (uint32_t i = text_start; i < size; i++) {
         if (payload[i] < 32 || payload[i] > 126 || payload[i] == '@' || payload[i] == '_')
             return send_error(request, "Speech input must be plain English text.");
     }
-    char input[MAX_TEXT + 32];
+    char input[MAX_TEXT + MAX_INLINE_PREFIX + 64];
     int prefix = snprintf(input, sizeof input, "@W%X @F%X @R%X ",
                           payload[0], payload[1], payload[2]);
-    if (prefix < 0 || (size_t)prefix + size - SETTING_BYTES >= sizeof input)
+    if (prefix < 0 || (size_t)prefix + command_size + text_size + 6 >= sizeof input)
         return send_error(request, "Speech input is too long.");
-    memcpy(input + prefix, payload + SETTING_BYTES, size - SETTING_BYTES);
-    input[prefix + size - SETTING_BYTES] = '\0';
+    if (command_size) {
+        memcpy(input + prefix, payload + SETTING_BYTES + INLINE_HEADER_BYTES, command_size);
+        prefix += (int)command_size;
+        input[prefix++] = ' ';
+    }
+    if (effect != INLINE_NO_EFFECT) {
+        snprintf(input + prefix, sizeof input - (size_t)prefix, "@T%c", effect == INLINE_PAUSE_EFFECT ? 'X' : "0123456789ABCDEF"[effect]);
+    } else {
+        memcpy(input + prefix, payload + text_start, text_size);
+        input[prefix + text_size] = '\0';
+    }
     frame_list frames = {0};
     engine_input in = {(const uint8_t *)input, strlen(input), true};
     bool calibrated = payload[6] == PROFILE_JUNO;
@@ -174,6 +204,10 @@ static int speak(uint32_t request, const uint8_t *payload, uint32_t size)
         free(audio);
         return send_error(request, "Apollo audio could not be adjusted safely.");
     }
+    /* Relative attenuation after peak protection cannot amplify or renormalize quiet passages. */
+    if (inline_volume != INLINE_FULL_VOLUME)
+        for (size_t i = 0; i < samples; i++)
+            audio[i] = (int16_t)((int32_t)audio[i] * inline_volume / INLINE_FULL_VOLUME);
     for (size_t offset = 0; offset < samples;) {
         size_t count = samples - offset;
         if (count > AUDIO_BYTES / 2)
@@ -208,9 +242,9 @@ int main(void)
             return 2;
         if (h.type == QUIT && !h.size)
             return 0;
-        if (h.type != SPEAK || !h.request)
+        if ((h.type != SPEAK && h.type != SPEAK_INLINE) || !h.request)
             return 2;
-        if (!speak(h.request, payload, h.size))
+        if (!speak(h.request, payload, h.size, h.type == SPEAK_INLINE))
             return 1;
     }
 }

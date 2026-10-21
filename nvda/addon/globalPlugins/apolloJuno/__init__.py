@@ -60,7 +60,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def _filterSpeech(self, speechSequence):
         synth = synthDriverHandler.getSynth()
-        if getattr(synth, 'name', '') != 'apolloJuno' or not getattr(synth, 'readNumbers', False):
+        if getattr(synth, 'name', '') != 'apolloJuno':
+            return speechSequence
+        if getattr(synth, 'inlineCommands', False):
+            from synthDrivers.apolloJuno._commands import prepare_sequence
+            speechSequence = prepare_sequence(speechSequence)
+        if not getattr(synth, 'readNumbers', False):
             return speechSequence
         from synthDrivers.apolloJuno._numbers import expand_times
         result = []

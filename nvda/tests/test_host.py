@@ -17,6 +17,70 @@ HOST = os.environ['APOLLO_TEST_HOST']
 
 
 class HostTests(unittest.TestCase):
+    def inline(self, prefix='', level=15, text='Hello.', effect=255, profile=0):
+        return b''.join(self.host.render_inline((3, 8, 3, 100, 50, 50, profile),
+                                              prefix, level, text, effect, self.stopping))
+
+    def test_inline_neutral_volume_and_restoration(self):
+        for profile in (0, 1):
+            normal = self.render('Hello.', (3, 8, 3, 100, 50, 50, profile))
+            self.assertEqual(self.inline(profile=profile), normal)
+            quiet = array.array('h', self.inline(level=5, profile=profile))
+            self.assertEqual(len(quiet)*2, len(normal))
+            self.assertTrue(all(abs(q*3-n) <= 2 for q, n in zip(quiet, array.array('h', normal))))
+            self.assertEqual(self.inline(level=0, profile=profile), bytes(len(normal)))
+            self.assertEqual(self.inline(profile=profile), normal)
+
+    def test_inline_controls_effects_and_reuse(self):
+        pid = self.host.pid
+        for profile in (0, 1):
+            normal = self.inline(profile=profile)
+            for prefix in ('@W9', '@F0', '@R7', '@Q9', '@DF', '@B1', '@K1', '@V2', '@U010+', '@S1', '@P1', '@H1'):
+                with self.subTest(prefix=prefix, profile=profile):
+                    text = 'This is a sample, with several words! Another sentence follows?' if prefix in ('@P1', '@H1') else 'Hello.'
+                    audio = self.inline(prefix, text=text, profile=profile)
+                    baseline = self.inline(text=text, profile=profile)
+                    self.assertTrue(audio != baseline, 'Command did not affect its test phrase')
+                    self.assertTrue(audio)
+            for effect in range(16):
+                audio = self.inline(text='', effect=effect, profile=profile)
+                self.assertTrue(any(audio))
+                self.assertEqual(audio, self.inline(text='', effect=effect, profile=profile))
+            self.assertEqual(self.inline(profile=profile), normal)
+            self.assertEqual(self.host.pid, pid)
+
+    def test_inline_pause_is_silent_and_has_bounded_duration(self):
+        for profile in (0,1):
+            audio = self.inline(text='', effect=16, profile=profile)
+            self.assertEqual(len(audio),4200)
+            self.assertFalse(any(audio))
+
+    def test_inline_native_validator_rejects_forged_packet_headers(self):
+        import struct
+        settings = bytes((3,8,3,100,50,50,0))
+        bad = (settings+b'\x00', settings+struct.pack('<HBB',100,15,255)+b'Hello.',
+               settings+struct.pack('<HBB',0,16,255)+b'Hello.',
+               settings+struct.pack('<HBB',0,15,17),
+               settings+struct.pack('<HBB',0,15,0)+b'Hello.',
+               settings+struct.pack('<HBB',0,15,255)+b'A'*321)
+        pid=self.host.pid
+        for payload in bad:
+            with self.assertRaises(host.HostError):
+                list(self.host._render_packet(host.SPEAK_INLINE,payload,self.stopping))
+            self.assertTrue(any(self.render()))
+            self.assertEqual(self.host.pid,pid)
+
+    def test_inline_rejects_unvalidated_native_input_and_recovers(self):
+        for prefix in ('@J', '@W0', '@M16', '@A0', '@T0', '@U0F+', '@RZFF', '@V0',
+                       '@F8 junk', '@F8\n@W9', '@F8\x00', '@F8 '*60):
+            with self.subTest(prefix=prefix), self.assertRaises((host.HostError, ValueError)):
+                self.inline(prefix)
+            self.assertTrue(any(self.render()))
+        for kwargs in ({'level':16}, {'effect':17}, {'effect':0}, {'text':'@W9'}, {'text':'_raw'}, {'text':''}):
+            with self.subTest(kwargs=kwargs), self.assertRaises((host.HostError, ValueError)):
+                self.inline(**kwargs)
+            self.assertTrue(any(self.render()))
+
     def test_mismatched_protocol_stops_helper_before_speech(self):
         with patch.object(host, 'PROTOCOL_VERSION', host.PROTOCOL_VERSION - 1):
             with self.assertRaisesRegex(host.HostError, 'protocol or sample rate'):

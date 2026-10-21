@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>Apollo II for NVDA</title></head>
 <body>
 <h1>Apollo II for NVDA</h1>
-<p>Version 1.1. Requires NVDA 2026.2 or later on 64-bit Windows.</p>
+<p>Version 1.2. Requires NVDA 2026.2 or later on 64-bit Windows.</p>
 <p>This add-on provides two UK English voice profiles based on the Dolphin
 Apollo II. The Juno profile's pronunciation, intonation and tone have been adjusted
 using recordings from a real Dolphin Juno. These profiles are approximations,
@@ -76,6 +76,62 @@ behaviour rather than the older Apollo firmware's abrupt limits. The highest
 rate is nearly flat. This does not change your selected intonation value;
 lowering the rate restores its effect. Apollo II (original) retains the older
 firmware's more abrupt high-rate limits.</p>
+<h2 id="inline-commands">Inline commands</h2>
+<p>Enable <strong>Allow inline commands</strong> in NVDA's Speech settings to
+interpret commands inside double braces. This checkbox is off by default and is
+not in the synthesizer ring. Enable it only when you want marked text to control
+the voice or play effects. Marked text from documents or websites can then do so.</p>
+<p>Use one command per marker. Commands are case-insensitive; spaces just inside
+the braces are optional. Ordinary unwrapped commands are not executed. Unsupported,
+invalid, nested or incomplete markers remain ordinary text, subject to NVDA's
+normal punctuation settings. Spelling reads characters rather than executing markers.</p>
+<pre>Normal speech. {{@W5}}{{@R7}}Faster and more expressive!
+{{@F4}}Lower pitch. {{@A6}}Quieter speech.
+{{@T8}}{{reset}}Back to my configured controls.</pre>
+<p>Changes apply within one supplied speech sequence, including its internal text
+chunks and playback indexes. They do not change saved voice settings.
+<code>{{reset}}</code> restores your configured controls immediately for the next
+text. New speech sequences and cancellation start cleanly. During Say All, NVDA
+can supply separate paragraphs or lines as separate sequences; repeat markers
+where needed rather than expecting them to stay active for the entire document.</p>
+<p>SoundWave's normal text capture can use the same markers. Enable this option
+and save NVDA's configuration before opening SoundWave's voice dialog, so its
+separate driver instance loads the choice. You do not need a special SoundWave
+plug-in. Text supplied as one render keeps its command changes until reset or the
+end of that input. Normal NVDA speech does not inherit changes from a render.</p>
+<table>
+<caption>Supported inline commands</caption>
+<thead><tr><th scope="col">Marker</th><th scope="col">Values</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>{{@W5}}</code></th><td>1 to 9</td><td>Native speech rate, slowest to fastest.</td></tr>
+<tr><th scope="row"><code>{{@F8}}</code></th><td>0 to 9, A to F</td><td>Sixteen native pitch levels, lowest to highest. 8 is the engine's normal centre.</td></tr>
+<tr><th scope="row"><code>{{@F+}}</code>, <code>{{@F-}}</code></th><td>Plus or minus</td><td>The firmware's small pitch-step variation. These do not accumulate like repeated slider presses. A numbered pitch command restores the normal step.</td></tr>
+<tr><th scope="row"><code>{{@R7}}</code></th><td>0 to 7</td><td>Intonation, flat to most expressive. The selected profile still limits intonation at high rates.</td></tr>
+<tr><th scope="row"><code>{{@Q3}}</code></th><td>0 to 9</td><td>Word-pause level in native units, not milliseconds.</td></tr>
+<tr><th scope="row"><code>{{@DB}}</code></th><td>0 to 9, A to F</td><td>Phrase-pause level in native units, not milliseconds.</td></tr>
+<tr><th scope="row"><code>{{@B8}}</code></th><td>1 to 8</td><td>Voicing, from breathy whisper at 1 to full voicing at 8.</td></tr>
+<tr><th scope="row"><code>{{@K1}}</code></th><td>0 or 1</td><td>Male or non-male speaker table, using the firmware's terminology.</td></tr>
+<tr><th scope="row"><code>{{@V2}}</code></th><td>1 to 6</td><td>Six native presets. These reset pitch, voicing, speaker table and formant offsets, but do not switch the NVDA Juno/original profile.</td></tr>
+<tr><th scope="row"><code>{{@U010+}}</code></th><td>Parameter 0 to 9, exactly two hex digits, then plus or minus</td><td>Advanced formant offsets. This example applies hexadecimal 10 to parameter 0. Large offsets can make speech unnatural. A voice preset clears these offsets.</td></tr>
+<tr><th scope="row"><code>{{@S1}}</code></th><td>0 or 1</td><td>Firmware spelling mode off or on.</td></tr>
+<tr><th scope="row"><code>{{@P1}}</code></th><td>0 or 1</td><td>Firmware punctuation mode off or on. NVDA may already have expanded punctuation before the driver receives it; raw SoundWave text avoids that preprocessing.</td></tr>
+<tr><th scope="row"><code>{{@H1}}</code></th><td>0 or 1</td><td>Content-only mode off or on. When on, connecting words can be omitted deliberately.</td></tr>
+<tr><th scope="row"><code>{{@A6}}</code></th><td>0 to 9, A to F</td><td>Relative output volume: 0 is silent, F is your configured volume, and intermediate values reduce it. Implemented in software after peak protection.</td></tr>
+<tr><th scope="row"><code>{{@T0}}</code> to <code>{{@TF}}</code></th><td>0 to 9, A to F</td><td>Play one effect. 0 to 3 are whooshes, 4 to 7 buzzers, 8 to B the first warble, and C to F the second warble. Each group runs shortest to longest.</td></tr>
+<tr><th scope="row"><code>{{@TX}}</code></th><td>X</td><td>A short silent effect. This implementation produces approximately 210 milliseconds including its boundary silence; it is not an exact timing control.</td></tr>
+<tr><th scope="row"><code>{{reset}}</code></th><td>No argument</td><td>Restore your configured controls for subsequent text in this input.</td></tr>
+</tbody>
+</table>
+<p>Hexadecimal uses 0 to 9 followed by A, B, C, D, E and F for values ten through
+fifteen. Each command marker can introduce an audio boundary, which can affect
+phrasing. The preset voices are approximations: hardware source-wave and
+mark-space controls are not reproduced by this renderer.</p>
+<p>Hardware reset, serial setup, language-bank changes, queries, echo commands,
+phonetic mode, mark-space ratio and source-wave commands are not supported here.
+The voice-off command <code>@V0</code> is also excluded; use <code>{{@A0}}</code>
+for silent passages and <code>{{reset}}</code> to restore your settings. Native
+pitch is stepped, not a calibrated musical-note interface, so singing and exact
+musical timing are not guaranteed.</p>
 <h2>Updates</h2>
 <p>Open <strong>Apollo II for NVDA</strong> in NVDA Settings. Choose Never,
 Hourly or Daily for automatic update checks; Daily is the default.
@@ -113,6 +169,13 @@ the <a href="https://www.w3.org/TR/audio-eq-cookbook/">W3C Audio EQ Cookbook</a>
 by Taro Ogawa, Savoir-faire Linux and contributors, under LGPL 2.1 or later.
 The library's copyright notices and licence accompany the included source.</p>
 <h2>Changelog</h2>
+<h3>1.2</h3>
+<ul>
+<li>Added opt-in double-brace inline commands for voice controls, modes and all sixteen sound effects.</li>
+<li>Added relative inline volume, a silent-pause effect and a reset marker without changing saved settings.</li>
+<li>Added a command table, examples and explicit unsupported-command limits.</li>
+<li>Kept ordinary speech audio and existing playback, spelling and Say All behaviour unchanged.</li>
+</ul>
 <h3>1.1</h3>
 <ul>
 <li>Added Apollo II (original) for comparing the upstream sound with Juno (calibrated).</li>

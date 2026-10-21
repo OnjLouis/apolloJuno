@@ -15,6 +15,8 @@ from synthDriverHandler import SynthDriver as BaseSynth, VoiceInfo, synthDoneSpe
 from ._host import Host, HOST_PATH, SAMPLE_RATE
 from ._text import chunks, native_rate, native_pitch, native_intonation, percent
 from ._numbers import expand_numbers
+from ._commands import InlineStateCommand, InlineEffectCommand, prepare_sequence
+from ._inline import State, NO_EFFECT
 
 PROFILES = {'uk': 0, 'apollo': 1}
 
@@ -33,8 +35,10 @@ class SynthDriver(BaseSynth):
                              defaultVal=50, minStep=1, normalStep=5, largeStep=10, displayName='Treble'),
         BooleanDriverSetting('readNumbers', 'Read &numbers as words', defaultVal=False,
                              displayName='Read numbers as words'),
+        BooleanDriverSetting('inlineCommands', 'Allow inline &commands', defaultVal=False,
+                             displayName='Allow inline commands'),
     )
-    supportedCommands = {IndexCommand, PitchCommand}
+    supportedCommands = {IndexCommand, PitchCommand, InlineStateCommand, InlineEffectCommand}
     supportedNotifications = {synthIndexReached, synthDoneSpeaking}
 
     @classmethod
@@ -47,6 +51,7 @@ class SynthDriver(BaseSynth):
         self._bass, self._treble = 50, 50
         self._voice = 'uk'
         self._readNumbers = False
+        self._inlineCommands = False
         self._generation = 0
         self._latest_job = 0
         self._lock = threading.Lock()
@@ -125,11 +130,20 @@ class SynthDriver(BaseSynth):
     def _set_readNumbers(self, value):
         self._readNumbers = bool(value)
 
+    def _get_inlineCommands(self):
+        return self._inlineCommands
+
+    def _set_inlineCommands(self, value):
+        self._inlineCommands = bool(value)
+
     def _current(self, generation):
         with self._lock:
             return not self._stopping.is_set() and generation == self._generation
 
     def speak(self, speechSequence):
+        if self._inlineCommands:
+            # SoundWave calls this driver directly, bypassing NVDA's speech filter.
+            speechSequence = prepare_sequence(speechSequence)
         events, parts = [], []
         def flush():
             text = ' '.join(parts)
@@ -146,6 +160,12 @@ class SynthDriver(BaseSynth):
             elif isinstance(item, PitchCommand):
                 flush()
                 events.append(('pitch', native_pitch(item.newValue)))
+            elif self._inlineCommands and isinstance(item, InlineStateCommand):
+                flush()
+                events.append(('state', item.commands))
+            elif self._inlineCommands and isinstance(item, InlineEffectCommand):
+                flush()
+                events.append(('effect', item.effect))
         flush()
         with self._control_lock:
             with self._lock:
@@ -193,6 +213,8 @@ class SynthDriver(BaseSynth):
         return True
 
     def _render(self, generation, job, settings, events):
+        state = State()
+        base_pitch = settings[1]
         for kind, value in events:
             if not self._current(generation):
                 return
@@ -202,7 +224,16 @@ class SynthDriver(BaseSynth):
             if kind == 'pitch':
                 settings = (settings[0], value, *settings[2:])
                 continue
-            for audio in self._host.render(settings, value, self._stopping):
+            if kind == 'state':
+                state = State(value)
+                continue
+            prefix = state.prefix(settings[1] - base_pitch)
+            if prefix or state.level != 15 or kind == 'effect':
+                response = self._host.render_inline(settings, prefix, state.level,
+                    '' if kind == 'effect' else value, value if kind == 'effect' else NO_EFFECT, self._stopping)
+            else:
+                response = self._host.render(settings, value, self._stopping)
+            for audio in response:
                 # Continue draining cancelled responses so the same helper is ready for the next input.
                 if self._current(generation):
                     self._feed(generation, audio)

@@ -1,6 +1,6 @@
 # Apollo II / Juno NVDA Integration
 
-This directory contains the Apollo II for NVDA 1.1 integration. Its firmware
+This directory contains the Apollo II for NVDA 1.2 integration. Its firmware
 profile and Juno-reference adjustments are specific to the NVDA host. Upstream
 has explicitly permitted GPL licensing of the add-on; see addon/NOTICE for the
 permission reference and preserved third-party attribution.
@@ -58,9 +58,26 @@ seven setting bytes (native rate, pitch, intonation, volume, bass, treble, profi
 and up to 320 bytes of
 plain ASCII text. Protocol constants are mirrored and tested in `_host.py`.
 Profile 0 is Juno and 1 is original Apollo; other values are rejected. Ready
-announces protocol version 3 and 10 kHz mono PCM16. Audio frames are at most
+announces protocol version 4 and 10 kHz mono PCM16. Audio frames are at most
 16384 bytes. Done carries the number of headroom halvings applied (zero normally).
 Plain speech cannot inject firmware commands.
+
+Opt-in inline markers are parsed by `_inline.py`. The speech filter converts them
+to `SynthParamCommand` snapshots and effect commands before NVDA's punctuation
+processing. Parameter snapshots follow NVDA's utterance splitting and priority
+replay, with an explicit default snapshot at the input's end. Direct driver calls
+use the same preparation for SoundWave. Character-mode text stays literal. No
+state is stored across independent driver jobs or written into saved controls.
+
+Message type 3 carries the same seven settings, then a four-byte inline header:
+little-endian uint16 prefix length, uint8 relative volume (0-15), uint8 effect
+(0-15, 16 for the silent effect, 255 for text). It is followed by the ASCII prefix
+(at most 192 bytes) and plain text (at most 320 bytes). Effect requests have no
+text; text requests must be nonempty. The native helper independently validates
+each prefix token against its audio-only whitelist. Serial, query and bank controls
+cannot pass. Ordinary text still rejects at signs and underscores. Volume is
+attenuated after the unchanged output protection; full volume bypasses exactly.
+Mixed helper/driver versions fail the startup handshake rather than guessing.
 
 The optional readNumbers BooleanDriverSetting expands plain English numbers
 before text chunking; it is off by default and does not change playback indexes.

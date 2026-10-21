@@ -62,6 +62,36 @@ identity, version, size and hash checks before NVDA stages the update.
 Save NVDA's configuration to retain your choices. See the
 [full manual](nvda/addon/doc/en/readme.html) for controls, limitations and credits.
 
+## Inline Commands
+
+Enable **Allow inline commands** in NVDA's Speech settings to interpret explicit
+double-brace markers. It is off by default. For example:
+
+```text
+Normal speech. {{@W5}}{{@R7}}Faster and more expressive!
+{{@F4}}Lower pitch. {{@A6}}Quieter speech. {{@T8}}{{reset}}Back to my settings.
+```
+
+Markers work in ordinary NVDA reading and with SoundWave's direct text capture.
+Save NVDA's configuration before opening SoundWave's voice dialog so its separate
+driver instance inherits the enabled option. No SoundWave-specific plug-in is needed.
+Commands apply only within the supplied speech sequence and its internal chunks;
+they never change saved controls. `{{reset}}` restores the configured controls
+mid-passage. NVDA may submit separate paragraphs or lines as separate sequences,
+so repeat the markers where needed during Say All. Cancellation also discards them.
+Spelling reads the marker characters rather than executing them.
+
+Supported controls include rate, pitch, intonation, word/phrase pauses, voicing,
+speaker tables, six presets, formant offsets, spelling/punctuation/content modes,
+relative volume and all sixteen effects. `{{@TX}}` inserts a short silent pause.
+Commands are case-insensitive, with one command per marker. Ordinary unwrapped
+`@` text and unsupported or malformed markers are not executed.
+
+See the [manual's command table](nvda/addon/doc/en/readme.html#inline-commands)
+for exact ranges, examples and unsupported hardware controls. Voice presets are
+approximate, not exact hardware reproductions. Native pitch is stepped, not a
+musical-note or timing interface; these commands do not promise accurate singing.
+
 ## Credits And Licence
 
 The firmware implementation and underlying renderer are from
@@ -97,6 +127,12 @@ Place the resulting `ApolloJunoHost.exe` under
 archive contains the contents of `nvda/addon`, not this repository's tests or
 native source directories. The binary protocol and architecture are documented
 in [the integration notes](nvda/README.md).
+
+## Version 1.2
+
+- Added opt-in double-brace inline commands for speech controls and sound effects.
+- Added relative inline volume and a reset marker without changing saved settings.
+- Kept ordinary speech audio and the existing playback/indexing behaviour unchanged.
 
 ## Version 1.1
 
